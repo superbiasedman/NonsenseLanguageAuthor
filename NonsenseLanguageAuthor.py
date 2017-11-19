@@ -4,6 +4,8 @@
 import random
 import sys
 
+from pprint import pformat
+
 from string import letters, digits
 
 import probabilities
@@ -13,7 +15,6 @@ class NovelCreator(object):
     MATCHED_PUNCTUATION = '<>[]{}()""'
     MIDLINE_PUNCTUATION = "$%^&*_+-=;:'@#~/\\|"
     ENDING_PUNCTUATION = '!?.'
-    VOWELS = "aeiou"
 
     def __init__(self, size, source_text=""):
         self.size = size + int(random.randrange(0, size/100))
@@ -21,6 +22,7 @@ class NovelCreator(object):
         self.word_count = 0
         self.last_word = ""
         if source_text:
+            self.initiatilise_empty_probability_sets()
             self.parse_text(source_text)
             self.set_defaults(False)
         else:
@@ -40,6 +42,7 @@ class NovelCreator(object):
             self.punctuation_midline = probabilities.PUNCTUATION_MIDLINE
             self.punctuation_endline = probabilities.PUNCTUATION_ENDLINE
             self.punctuation_matched = probabilities.PUNCTUATION_MATCHED
+            self.vowels = probabilities.VOWELS
 
         # Common values even when parsing imported text
         self.new_word_chance = probabilities.NEW_WORD_CHANCE
@@ -48,6 +51,19 @@ class NovelCreator(object):
         self.punctuation_matched_chance = probabilities.PUNCTUATION_MATCHED_CHANCE
         self.optimal_word_count = probabilities.OPTIMAL_WORD_COUNT
         self.vowel_distance_threshold = probabilities.VOWEL_DISTANCE_THRESHOLD
+
+
+    def __str__(self):
+        
+        values = ["Letters:\n{}".format(self.letters).replace('\n', '\n\t'),
+                  "Word Constructions:\n{}".format(self.word_constructions).replace('\n', '\n\t'),
+                  "Sentence sizes:\n{}".format(self.sentence_sizes).replace('\n', '\n\t'),
+                  "Paragraph sizes:\n{}".format(self.paragraph_sizes).replace('\n', '\n\t'),
+                  "Punctuation midline:\n{}".format(self.punctuation_midline).replace('\n', '\n\t'),
+                  "Punctuation endline:\n{}".format(self.punctuation_endline).replace('\n', '\n\t'),
+                  "Punctuation matched:\n{}".format(self.punctuation_matched).replace('\n', '\n\t'),
+                  "Vowels:\n{}".format(self.vowels).replace('\n', '\n\t')]
+        return '[NovelCreator]:\n' + '\n'.join(values)
 
 
     def write(self, filepath):
@@ -143,7 +159,7 @@ class NovelCreator(object):
     def get_letter(self, vowel_need):
         """Return a letter character."""
 
-        return self.letters.get(vowel_need, self.VOWELS)
+        return self.letters.get(vowel_need, self.vowels)
 
 
     def create_word(self):
@@ -158,7 +174,7 @@ class NovelCreator(object):
                 letter = self.get_letter(0)
             word += letter
 
-        while not any(letter in self.VOWELS for letter in word):
+        while not any(letter in self.vowels for letter in word):
             length = len(word)
             if length == 1:
                 index = 0
@@ -174,11 +190,11 @@ class NovelCreator(object):
         self.words.append(word)
         self.word_count += 1
         return word
+
+    def initiatilise_empty_probability_sets(self):
+        """Creates empty probability sets for object."""
     
-    def parse_text(self, source):
-        """Read the file at source to get ProbabilitySets"""
-        
-        self.letters = probabilities.ProbabilitySet(adjust=True)
+        self.letters = probabilities.ProbabilitySet(adjust=True, redo_repeats=True)
         self.punctuation_endline = probabilities.ProbabilitySet()
         self.punctuation_midline = probabilities.ProbabilitySet()
         self.punctuation_matched = probabilities.ProbabilitySet()
@@ -186,11 +202,19 @@ class NovelCreator(object):
         self.word_sizes = probabilities.ProbabilitySet(redo_repeats=True)
         self.sentence_sizes = probabilities.ProbabilitySet(redo_repeats=True)
         self.paragraph_sizes = probabilities.ProbabilitySet(redo_repeats=True)
-        
+
+
+    def parse_text(self, source):
+        """Read the file at source to get ProbabilitySets"""
+
+        global word_set
         line_count = 0
         word_count = 0
+        self.vowels = self.analyse_vowels(source)
+
         with open(source) as f:
             for line in f:
+                # Detect end of paragraph
                 if line_count and not line.strip() or line.startswith("\t"):
                     self.paragraph_sizes.add(line_count)
                     line_count = 0
@@ -200,29 +224,111 @@ class NovelCreator(object):
                     if not word:
                         continue
                     self.word_sizes.add(len(word))
-                    construction = ""
-                    word_count += 1
-                    for c in word.lower():
-                        if word_count and c in self.ENDING_PUNCTUATION:
-                            line_count += 1
-                            self.sentence_sizes.add(word_count)
-                            word_count = 0
-                        self.parse_character(c)
-                        if c in self.VOWELS:
-                            construction += "v"
-                        elif c in letters:
-                            construction += "c"
+                    construction = self.calculate_construction(word)
                     self.word_constructions.add(construction)
+                    word_count += 1
+
+                    # Check if this is the end of a line.
+                    if word[-1] in self.ENDING_PUNCTUATION:
+                        line_count += 1
+                        self.sentence_sizes.add(word_count)
+                        word_count = 0
+
+        
         if not self.paragraph_sizes.is_empty():
             # Liable to not parse in certain sources.
             self.paragraph_sizes = probabilities.PARAGRAPH_SIZES
 
-        
         for probability_set in (self.letters, self.punctuation_endline, self.punctuation_matched,
                                 self.punctuation_midline, self.word_constructions,
                                 self.word_sizes, self.sentence_sizes):
-            print(probability_set)
-            print("="*78)
+            pass
+            #print(probability_set)
+            #print("=" * 78)
+
+
+    def analyse_vowels(self, source):
+        """Return a list of vowel characters from input word set."""
+
+        word_set = set()
+        with open(source) as f:
+            for line in f:
+                words = [word.lower().strip() for word in line.split()]
+                for word in words:
+                    map(self.parse_character, word)
+                    stripped = ''.join(c for c in word if c in letters)
+                    if stripped:
+                       word_set.add(stripped)
+        vowels = self.get_possible_vowels(word_set)
+        return self.filter_vowels(vowels, word_set)
+
+
+    def get_possible_vowels(self, word_set):
+        """Returns a string of possible vowel characters.
+
+        Contains many false positives that need to be filtered out."""
+        
+        vowels = ""
+        for word in word_set:
+            # Check if existing vowel is in word.
+            if any(vowel in word for vowel in vowels):
+                continue
+            # Find most common letter and assume it's a vowel
+            vowel, probability = '', 0
+            for c in word:
+                _, number = self.letters.get_value(c)
+                if number > probability:
+                    vowel = c
+                    probability = number
+            vowels += vowel
+        return vowels
+
+
+    def filter_vowels(self, vowels, word_set, iterations=10):
+        """Return a filtered string of vowels with unlikely ones removed.
+        
+        Vowels are filtered based on if they appear without other vowels.
+        If a word contains just one vowel, that vowel's usage is incremented.
+        A vowel is kept if uses > iteration
+        Where iteration is the number of the current iteration
+        (from 0 to `iterations`).
+        This slowly removes less and less likely vowels."""
+        
+        true_vowels = vowels
+        for i in range(iterations):
+            vowels = true_vowels
+            # Go backwards as the last ones are least likely.
+            for vowel in vowels[::-1]:
+                uses = 0
+                for word in word_set:
+                    if vowel not in word or len(word) < 4:
+                        continue
+                    word_ = word.replace(vowel, '')
+                    # Check if no other vowels are in this word.
+                    if not any(v in word_ for v in true_vowels):
+                        print vowel, "is needed in", word
+                        uses += 1
+                    if uses > i:
+                        break
+                else:
+                    true_vowels = true_vowels.replace(vowel, '')
+        return vowels
+
+
+    def calculate_construction(self, word):
+        """Return a string showing the consonant and vowel construction of word.
+        
+        Returns a string with the characters c and v in place of consonants and
+        vowels respectively."""
+    
+        construction = ""
+        for c in word.lower():
+            if c in self.vowels:
+                construction += "v"
+            elif c in letters:
+                construction += "c"
+        return construction
+
 
     def parse_character(self, character):
         """Take a character and add it to the relevant ProbabilitySet."""
@@ -243,13 +349,15 @@ class NovelCreator(object):
             self.punctuation_midline.add(character)
             
 
-def main(output):
+def main(source_file, output):
     global novel
-    novel = NovelCreator(50000, "C:\Users\Gary\Documents\NaNoGenMo\input.txt")
+    print("Parsing source file at " + source_file)
+    novel = NovelCreator(50000, source_file)
+    print("Writing novel to " + output)
     novel.write(output)
-    print(novel.letters)
+    print(novel)
 
 
 if __name__ == "__main__":
-    #main(sys.argv[1])
-    main("output.txt")
+    main(sys.argv[1], sys.argv[2])
+    #main("input.txt", "output.txt")

@@ -45,6 +45,7 @@ class ProbabilitySet(object):
         except KeyError:
             return value, 0
 
+
     def get_probabilities(self, weight=None, weight_set=""):
         """Return the probability set, adjusted by weight."""
 
@@ -62,8 +63,8 @@ class ProbabilitySet(object):
         """Return a value chosen using weighted probabilities."""
     
         probabilities = self.get_probabilities(weight, weight_set)
-        probability_sum = int(sum(probabilities.values()))
         while True:
+            probability_sum = int(sum(probabilities.values()))
             number = random.randrange(0, probability_sum)
             for item, probability in probabilities.items():
                 number -= probability
