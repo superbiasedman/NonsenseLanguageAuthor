@@ -239,13 +239,6 @@ class NovelCreator(object):
             # Liable to not parse in certain sources.
             self.paragraph_sizes = probabilities.PARAGRAPH_SIZES
 
-        for probability_set in (self.letters, self.punctuation_endline, self.punctuation_matched,
-                                self.punctuation_midline, self.word_constructions,
-                                self.word_sizes, self.sentence_sizes):
-            pass
-            #print(probability_set)
-            #print("=" * 78)
-
 
     def analyse_vowels(self, source):
         """Return a list of vowel characters from input word set."""
@@ -306,7 +299,6 @@ class NovelCreator(object):
                     word_ = word.replace(vowel, '')
                     # Check if no other vowels are in this word.
                     if not any(v in word_ for v in true_vowels):
-                        print vowel, "is needed in", word
                         uses += 1
                     if uses > i:
                         break
