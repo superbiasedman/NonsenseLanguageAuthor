@@ -93,8 +93,7 @@ VOWEL_DISTANCE_THRESHOLD = 3
 LETTERS = ProbabilitySet({"a": 110, "b": 20, "c": 37, "d": 57, "e": 171, "f": 30,
                           "g": 27, "h": 82, "i": 94, "j": 2, "k": 10, "l": 54,
                           "m": 32, "n": 91, "o": 101, "p": 26, "q": 1, "r": 81,
-                          #"s": 86, "t": 122, "u": 37, "v": 13, "w": 32, "x": 2,
-                          "s": 86, "t": 122, "u": 37, "v": 13, "w": 32, "x": 200000000000000000000000000000,
+                          "s": 86, "t": 122, "u": 37, "v": 13, "w": 32, "x": 2,
                           "y": 27, "z": 1}, adjust=True, redo_repeats=True)
 VOWEL_SET = None
 CONSONANT_SET = None
