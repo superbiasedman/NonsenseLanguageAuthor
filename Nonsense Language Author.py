@@ -20,7 +20,9 @@ class ProbabilitySet(object):
         self.redo_repeats = redo_repeats
         self.last_value = ''
 
-    def add(self, item, probability):
+    def add(self, item, probability=1):
+        """Add a new item or adjust it's probability if it already exists."""
+    
         if not item:
             return
         try:
@@ -29,9 +31,13 @@ class ProbabilitySet(object):
             self.values[item] = probability
 
     def empty(self):
+        """Remove all values and their probabilities."""
+
         self.values = {}
 
     def is_empty(self):
+        """Return True if there are no values set."""
+    
         return any(self.values.keys())
 
     def get_value(self, value):
@@ -41,9 +47,10 @@ class ProbabilitySet(object):
             return value, self.values[value]
         except KeyError:
             return value, 0
-    
-    
-    def get(self, weight=None, weight_set=""):
+
+    def get_probabilities(self, weight=None, weight_set=""):
+        """Return the probability set, adjusted by weight."""
+
         probabilities = self.values.copy()
         if weight:
             for value in weight_set:
@@ -51,7 +58,13 @@ class ProbabilitySet(object):
                     probabilities[value] = int(probabilities[value] * weight)
                 except KeyError:
                     pass
+        return probabilities
 
+
+    def get(self, weight=None, weight_set=""):
+        """Return a value chosen using weighted probabilities."""
+    
+        probabilities = self.get_probabilities(weight, weight_set)
         probability_sum = int(sum(probabilities.values()))
         while True:
             number = random.randrange(0, probability_sum)
@@ -59,14 +72,15 @@ class ProbabilitySet(object):
                 number -= probability
                 if number < 0:
                     if self.redo_repeats and item == self.last_value:
+                        # Reset last_value to only prevent repeats once
                         self.last_value = ""
-                        # Only prevent repeats once
                         break
                     else:
                         self.last_value = item
                     if self.adjust:
                         self.values[item] *= self.ADJUSTMENT
                     return item
+
 
     def __str__(self):
         return "\n".join("{} - {}".format(value, probability)
@@ -209,23 +223,6 @@ class NovelCreator(object):
     def create_word(self):
         """Return a newly generated string word."""
         
-        #size = self.WORD_SIZES.get()
-        #template = ""
-        #while len(template) < size:
-            #template += self.WORD_CONSTRUCTIONS.get()
-        #template = template[:size]
-        template = self.WORD_CONSTRUCTIONS.get()
-        word = ""
-
-        #vowel_need = int(size / 5)
-        #vowel_count = 0
-        
-        #for i in range(size):
-            #letter = self.get_letter(vowel_need)
-            #if letter in self.VOWELS:
-            #    vowel_count += 1
-            #    vowel_need = (size - vowel_count * 2)/ 5
-            #word += letter
         for c in template:
             if c == "v":
                 letter = self.get_letter(100)
@@ -268,27 +265,27 @@ class NovelCreator(object):
         with open(source) as f:
             for line in f:
                 if line_count and not line.strip() or line.startswith("\t"):
-                    new_paragraphs.add(line_count, 1)
+                    new_paragraphs.add(line_count)
                     line_count = 0
                 
                 words = line.split()
                 for word in words:
                     if not word:
                         continue
-                    self.WORD_SIZES.add(len(word), 1)
+                    self.WORD_SIZES.add(len(word))
                     construction = ""
                     word_count += 1
                     for c in word.lower():
                         if word_count and c in self.ENDING_PUNCTUATION:
                             line_count += 1
-                            self.SENTENCE_SIZES.add(word_count, 1)
+                            self.SENTENCE_SIZES.add(word_count)
                             word_count = 0
                         self.parse_character(c)
                         if c in self.VOWELS:
                             construction += "v"
                         elif c in letters:
                             construction += "c"
-                    self.WORD_CONSTRUCTIONS.add(construction, 1)
+                    self.WORD_CONSTRUCTIONS.add(construction)
         if not new_paragraphs.is_empty():
             self.PARAGRAPH_SIZES = new_paragraphs
 
@@ -303,7 +300,7 @@ class NovelCreator(object):
         """Take a character and add it to the relevant ProbabilitySet."""
         
         if character in letters:
-            self.LETTERS.add(character, 1)
+            self.LETTERS.add(character)
         elif character in self.MATCHED_PUNCTUATION:
             index = self.MATCHED_PUNCTUATION.find(character)
             if index % 2 != 0:
@@ -311,11 +308,11 @@ class NovelCreator(object):
                 return
             # Take the character and it's closing value.
             key = self.MATCHED_PUNCTUATION[index:index + 2]
-            self.PUNCTUATION_MATCHED.add(key, 1)
+            self.PUNCTUATION_MATCHED.add(key)
         elif character in self.ENDING_PUNCTUATION:
-            self.PUNCTUATION_ENDLINE.add(character, 1)
+            self.PUNCTUATION_ENDLINE.add(character)
         elif character in self.MIDLINE_PUNCTUATION:
-            self.PUNCTUATION_MIDLINE.add(character, 1)
+            self.PUNCTUATION_MIDLINE.add(character)
             
 
 def main(output):
